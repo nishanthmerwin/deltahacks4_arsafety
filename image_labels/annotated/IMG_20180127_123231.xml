@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>pictures</folder>
+	<filename>IMG_20180127_123231.jpg</filename>
+	<path>/home/nishanth/Documents/deltahacks/linux_v1.4.3/pictures/IMG_20180127_123231.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2448</width>
+		<height>3264</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>pringles</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1921</xmin>
+			<ymin>672</ymin>
+			<xmax>2181</xmax>
+			<ymax>1187</ymax>
+		</bndbox>
+	</object>
+</annotation>
