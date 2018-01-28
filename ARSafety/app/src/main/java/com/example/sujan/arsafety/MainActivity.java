@@ -23,12 +23,18 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static android.os.Environment.getExternalStoragePublicDirectory;
 
@@ -83,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         galleryAddPic();
-        String img = setPic();
+        setPic();
     }
 
     private void galleryAddPic() {
@@ -94,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
         this.sendBroadcast(mediaScanIntent);
     }
 
-    private String setPic() {
+    private void setPic() {
         // Get the dimensions of the View
         int targetW = mImageView.getWidth();
         int targetH = mImageView.getHeight();
@@ -125,7 +131,15 @@ public class MainActivity extends AppCompatActivity {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
         byte[] byteArray = stream.toByteArray();
-        return Base64.encodeToString(byteArray, Base64.DEFAULT);
+        String base64 = Base64.encodeToString(byteArray, Base64.DEFAULT);
+
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("img", base64);
+            Log.i("JSON", jsonObject.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     public static int neededRotation(File ff) {
