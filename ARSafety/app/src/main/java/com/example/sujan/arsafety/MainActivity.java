@@ -63,9 +63,17 @@ public class MainActivity extends AppCompatActivity {
     static final int REQUEST_TAKE_PHOTO = 1;
 
     private File createImageFile() throws IOException {
+        // Remove older image files
+        for (File file : getExternalFilesDir(Environment.DIRECTORY_PICTURES).listFiles()) {
+            if (file.getName().startsWith("ARSafety")) {
+                Log.i("File deleted", file.getName());
+                file.delete();
+            }
+        }
+
         // Create an image file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
+        String imageFileName = "ARSafety_JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
                 imageFileName,  /* prefix */
@@ -154,7 +162,9 @@ public class MainActivity extends AppCompatActivity {
                 m, true);
 
         textView.setText("Loading...");
+        mImageView.setVisibility(View.INVISIBLE);
         textView.setVisibility(View.VISIBLE);
+        pictureButton.setText("Take another picture");
         infoButton.setVisibility(View.GONE);
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
