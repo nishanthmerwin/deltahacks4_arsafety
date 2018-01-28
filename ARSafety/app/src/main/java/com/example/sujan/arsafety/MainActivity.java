@@ -1,11 +1,13 @@
 package com.example.sujan.arsafety;
 
 import android.Manifest;
+import android.app.ActionBar;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.drawable.ColorDrawable;
 import android.location.LocationManager;
 import android.media.ExifInterface;
 import android.net.Uri;
@@ -20,7 +22,9 @@ import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONException;
@@ -41,6 +45,9 @@ import static android.os.Environment.getExternalStoragePublicDirectory;
 public class MainActivity extends AppCompatActivity {
 
     ImageView mImageView;
+    ImageView dangerImageView;
+    TextView textView;
+    Button button;
 
     String mCurrentPhotoPath;
 
@@ -88,8 +95,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        galleryAddPic();
-        setPic();
+        try {
+            galleryAddPic();
+            setPic();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void galleryAddPic() {
@@ -113,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
         int photoH = bmOptions.outHeight;
 
         // Determine how much to scale down the image
-        int scaleFactor = Math.min(photoW/targetW, photoH/targetH);
+        int scaleFactor = 5;//Math.min(photoW/targetW, photoH/targetH);
 
         // Decode the image file into a Bitmap sized to fill the View
         bmOptions.inJustDecodeBounds = false;
@@ -126,7 +138,12 @@ public class MainActivity extends AppCompatActivity {
         bitmap = Bitmap.createBitmap(bitmap,
                 0, 0, bitmap.getWidth(), bitmap.getHeight(),
                 m, true);
+
         mImageView.setImageBitmap(bitmap);
+        mImageView.setVisibility(View.VISIBLE);
+        dangerImageView.setVisibility(View.INVISIBLE);
+        textView.setVisibility(View.INVISIBLE);
+        button.setText("Take another picture");
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
@@ -136,6 +153,7 @@ public class MainActivity extends AppCompatActivity {
         JSONObject jsonObject = new JSONObject();
         try {
             jsonObject.put("img", base64);
+            Log.i("Filepath", mCurrentPhotoPath);
             Log.i("JSON", jsonObject.toString());
         } catch (JSONException e) {
             e.printStackTrace();
@@ -164,12 +182,24 @@ public class MainActivity extends AppCompatActivity {
         dispatchTakePictureIntent();
     }
 
+    public void displayInfo() {
+
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        ActionBar bar = getActionBar();
+        if (bar != null) {
+            bar.setBackgroundDrawable(new ColorDrawable(1));
+        }
+
         mImageView = findViewById(R.id.mImageView);
+        dangerImageView = findViewById(R.id.dangerImageView);
+        textView = findViewById(R.id.textView);
+        button = findViewById(R.id.button);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
