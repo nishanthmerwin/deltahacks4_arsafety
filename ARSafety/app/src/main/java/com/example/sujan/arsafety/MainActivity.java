@@ -8,12 +8,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.drawable.ColorDrawable;
-import android.location.LocationManager;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
@@ -25,7 +23,15 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import com.android.volley.AuthFailureError;
+import com.android.volley.DefaultRetryPolicy;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -37,19 +43,20 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-
-import static android.os.Environment.getExternalStoragePublicDirectory;
 
 public class MainActivity extends AppCompatActivity {
 
     ImageView mImageView;
     ImageView dangerImageView;
     TextView textView;
-    Button button;
+    Button pictureButton;
+    Button infoButton;
 
     String mCurrentPhotoPath;
+    Bitmap bitmap;
+    JSONObject capturedObject;
+    JSONObject imageData;
 
     static final int REQUEST_TAKE_PHOTO = 1;
 
@@ -57,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
         // Create an image file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
-        File storageDir =  getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
                 imageFileName,  /* prefix */
                 ".jpg",         /* suffix */
@@ -96,10 +103,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         try {
-            galleryAddPic();
-            setPic();
-        }
-        catch (Exception e) {
+            try {
+                galleryAddPic();
+            }
+            catch (Exception e) {
+                textView.setText("One more time, please...");
+            }
+            encodeImage();
+            apiCall();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -112,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
         this.sendBroadcast(mediaScanIntent);
     }
 
-    private void setPic() {
+    private void encodeImage() {
         // Get the dimensions of the View
         int targetW = mImageView.getWidth();
         int targetH = mImageView.getHeight();
@@ -121,8 +133,8 @@ public class MainActivity extends AppCompatActivity {
         BitmapFactory.Options bmOptions = new BitmapFactory.Options();
         bmOptions.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
-        int photoW = bmOptions.outWidth;
-        int photoH = bmOptions.outHeight;
+        //int photoW = bmOptions.outWidth;
+        //int photoH = bmOptions.outHeight;
 
         // Determine how much to scale down the image
         int scaleFactor = 5;//Math.min(photoW/targetW, photoH/targetH);
@@ -139,26 +151,81 @@ public class MainActivity extends AppCompatActivity {
                 0, 0, bitmap.getWidth(), bitmap.getHeight(),
                 m, true);
 
-        mImageView.setImageBitmap(bitmap);
-        mImageView.setVisibility(View.VISIBLE);
-        dangerImageView.setVisibility(View.INVISIBLE);
-        textView.setVisibility(View.INVISIBLE);
-        button.setText("Take another picture");
+        textView.setText("Loading...");
+        textView.setVisibility(View.VISIBLE);
+        infoButton.setVisibility(View.GONE);
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
         byte[] byteArray = stream.toByteArray();
         String base64 = Base64.encodeToString(byteArray, Base64.DEFAULT);
 
-        JSONObject jsonObject = new JSONObject();
+        capturedObject = new JSONObject();
         try {
-            jsonObject.put("img", base64);
+            capturedObject.put("img", base64);
             Log.i("Filepath", mCurrentPhotoPath);
-            Log.i("JSON", jsonObject.toString());
+            Log.i("JSON", capturedObject.toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
+
+    public void apiCall() {
+
+        // Instantiate the RequestQueue.
+        RequestQueue queue = Volley.newRequestQueue(this);
+        String url ="https://arsafety.herokuapp.com/predict";
+
+        JsonObjectRequest postRequest = new JsonObjectRequest( Request.Method.POST, url, capturedObject,
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        Log.d("Returned JSON", response.toString());
+                        byte[] decodedString = new byte[0];
+                        try {
+                            decodedString = Base64.decode(response.getString("img"), Base64.DEFAULT);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                        Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                        mImageView.setImageBitmap(bitmap);
+                        mImageView.setVisibility(View.VISIBLE);
+                        dangerImageView.setVisibility(View.INVISIBLE);
+                        textView.setVisibility(View.INVISIBLE);
+                        pictureButton.setText("Take another picture");
+                        infoButton.setVisibility(View.VISIBLE);
+                        imageData = response;
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        //   Handle Error
+                        Log.i("Error",error.toString());
+                        mImageView.setVisibility(View.INVISIBLE);
+                        dangerImageView.setVisibility(View.VISIBLE);
+                        textView.setVisibility(View.VISIBLE);
+                        pictureButton.setText("Try again");
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                HashMap<String, String> headers = new HashMap<String,String>();
+                headers.put("Content-Type", "application/json; charset=utf-8");
+                return headers;
+            }
+            @Override
+            public String getBodyContentType() {
+                return "application/json";
+            }
+        };
+        postRequest.setRetryPolicy(new DefaultRetryPolicy(
+                3000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        queue.add(postRequest);
+    }
+
 
     public static int neededRotation(File ff) {
         try {
@@ -182,8 +249,8 @@ public class MainActivity extends AppCompatActivity {
         dispatchTakePictureIntent();
     }
 
-    public void displayInfo() {
-
+    public void moreInfo(View view) {
+        Log.i("Info", "More info requested");
     }
 
     @Override
@@ -199,7 +266,10 @@ public class MainActivity extends AppCompatActivity {
         mImageView = findViewById(R.id.mImageView);
         dangerImageView = findViewById(R.id.dangerImageView);
         textView = findViewById(R.id.textView);
-        button = findViewById(R.id.button);
+        pictureButton = findViewById(R.id.pictureButton);
+        infoButton = findViewById(R.id.infoButton);
+
+        infoButton.setVisibility(View.GONE);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
