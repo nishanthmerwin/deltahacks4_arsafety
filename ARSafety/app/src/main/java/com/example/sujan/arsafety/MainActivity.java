@@ -33,6 +33,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -41,6 +42,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
     String mCurrentPhotoPath;
     Bitmap bitmap;
     JSONObject capturedObject;
-    JSONObject imageData;
+    JSONArray imageData;
 
     static final int REQUEST_TAKE_PHOTO = 1;
 
@@ -144,7 +146,7 @@ public class MainActivity extends AppCompatActivity {
         bmOptions.inSampleSize = scaleFactor;
         bmOptions.inPurgeable = true;
 
-        Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+        bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
         Matrix m = new Matrix();
         m.postRotate(neededRotation(new File(mCurrentPhotoPath)));
         bitmap = Bitmap.createBitmap(bitmap,
@@ -194,7 +196,12 @@ public class MainActivity extends AppCompatActivity {
                         textView.setVisibility(View.INVISIBLE);
                         pictureButton.setText("Take another picture");
                         infoButton.setVisibility(View.VISIBLE);
-                        imageData = response;
+                        try {
+                            imageData = response.getJSONArray("predictions");
+                            Log.i("Image data", imageData.toString());
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
                 },
                 new Response.ErrorListener() {
@@ -251,6 +258,33 @@ public class MainActivity extends AppCompatActivity {
 
     public void moreInfo(View view) {
         Log.i("Info", "More info requested");
+        if (imageData != null) {
+            Log.i("Image Data JSON", imageData.toString());
+            textView.setVisibility(View.INVISIBLE);
+            ArrayList<String> objects = new ArrayList<String>();
+            try {
+                JSONArray array = new JSONArray(imageData.toString());
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject jsonPart = array.getJSONObject(i);
+                    objects.add(jsonPart.toString());
+                }
+                Intent intent = new Intent(getApplicationContext(), ListActivity.class);
+                try {
+                    intent.putExtra("objects", ObjectSerializer.serialize(objects));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                startActivity(intent);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                textView.setText("Something went wrong!");
+                textView.setVisibility(View.VISIBLE);
+            }
+        }
+        else {
+            textView.setText("No objects recognized!");
+            textView.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override
